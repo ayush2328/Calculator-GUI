@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apple-Style 3D Calculator</title>
+    <title>Apple GUI - Calculator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         * {
@@ -33,6 +33,25 @@
             padding: 20px;
         }
 
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #ff9500, #ff5e3a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
         .calculator {
             background: rgba(0, 0, 0, 0.9);
             border-radius: 40px;
@@ -53,6 +72,7 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
+            overflow: hidden;
         }
 
         .previous-operand {
@@ -61,6 +81,8 @@
             margin-bottom: 8px;
             min-height: 28px;
             font-weight: 300;
+            word-wrap: break-word;
+            word-break: break-all;
         }
 
         .current-operand {
@@ -170,6 +192,13 @@
             pointer-events: auto;
         }
 
+        .footer {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 10px;
@@ -219,6 +248,11 @@
     <div id="canvas-container"></div>
     
     <div class="container">
+        <header class="header">
+            <h1>Apple GUI - Calculator</h1>
+            <p class="subtitle">Built with Three.js • Ready for Vercel</p>
+        </header>
+        
         <div class="calculator">
             <div class="display">
                 <div class="previous-operand" id="previous-operand"></div>
@@ -250,6 +284,10 @@
                 <button class="button operator" data-action="equals">=</button>
             </div>
         </div>
+        
+        <footer class="footer">
+            <p>This calculator works! Try it out. Ready to deploy on Vercel.</p>
+        </footer>
     </div>
 
     <script>
@@ -273,7 +311,7 @@
                     });
                     
                     this.particles = null;
-                    this.particleCount = 400;
+                    this.particleCount = 500; // More particles for denser effect
                     this.mouseX = 0;
                     this.mouseY = 0;
                     this.time = 0;
@@ -339,7 +377,8 @@
                     colors[i * 3 + 1] = color.g;
                     colors[i * 3 + 2] = color.b;
 
-                    sizes[i] = Math.random() * 0.8 + 0.3;
+                    // MUCH SMALLER particle sizes - like the reference image
+                    sizes[i] = Math.random() * 0.3 + 0.1; // Reduced from 0.3-1.1 to 0.1-0.4
                 }
 
                 geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -347,7 +386,7 @@
                 geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
                 const material = new THREE.PointsMaterial({
-                    size: 1,
+                    size: 0.5, // Smaller base size
                     vertexColors: true,
                     transparent: true,
                     opacity: 0.8,
@@ -434,7 +473,7 @@
                             colors[i3 + 1] = 0.9 + yellowIntensity * 0.1;
                             colors[i3 + 2] = 0.3;
                             
-                            sizes[i] = Math.min(data.originalSize * (1 + yellowIntensity * 0.5), 2);
+                            sizes[i] = Math.min(data.originalSize * (1 + yellowIntensity * 0.5), 1);
                         } else {
                             const targetColor = new THREE.Color(0.95, 0.95, 1.0);
                             colors[i3] += (targetColor.r - colors[i3]) * 0.05;
@@ -471,7 +510,7 @@
             }
         }
 
-        // Calculator Logic
+        // Calculator Logic - FIXED VERSION
         class Calculator {
             constructor(previousOperandElement, currentOperandElement) {
                 this.previousOperandElement = previousOperandElement;
@@ -484,55 +523,65 @@
                 this.previousOperand = '';
                 this.operation = undefined;
                 this.resetScreen = false;
+                this.isNewCalculation = true;
             }
 
             appendNumber(number) {
-                if (this.resetScreen) {
+                if (this.resetScreen || this.currentOperand === '0' || this.isNewCalculation) {
                     this.currentOperand = '';
                     this.resetScreen = false;
+                    this.isNewCalculation = false;
                 }
                 
                 if (number === '.' && this.currentOperand.includes('.')) return;
                 
-                if (this.currentOperand === '0' && number !== '.') {
-                    this.currentOperand = number.toString();
-                } else {
-                    this.currentOperand = this.currentOperand.toString() + number.toString();
-                }
+                this.currentOperand = this.currentOperand.toString() + number.toString();
             }
 
             chooseOperation(operation) {
                 if (this.currentOperand === '') return;
                 
-                if (this.previousOperand !== '') {
+                if (this.previousOperand !== '' && !this.resetScreen) {
                     this.compute();
                 }
                 
                 this.operation = operation;
-                this.previousOperand = this.currentOperand;
-                this.currentOperand = '';
+                this.previousOperand = this.currentOperand + ' ' + this.getOperationSymbol(operation);
+                this.resetScreen = true;
+            }
+
+            getOperationSymbol(operation) {
+                switch(operation) {
+                    case 'add': return '+';
+                    case 'subtract': return '−';
+                    case 'multiply': return '×';
+                    case 'divide': return '÷';
+                    default: return operation;
+                }
             }
 
             compute() {
                 let computation;
-                const prev = parseFloat(this.previousOperand);
+                const prev = parseFloat(this.previousOperand.split(' ')[0]);
                 const current = parseFloat(this.currentOperand);
                 
                 if (isNaN(prev) || isNaN(current)) return;
                 
                 switch (this.operation) {
-                    case '+':
+                    case 'add':
                         computation = prev + current;
                         break;
-                    case '−':
+                    case 'subtract':
                         computation = prev - current;
                         break;
-                    case '×':
+                    case 'multiply':
                         computation = prev * current;
                         break;
-                    case '÷':
+                    case 'divide':
                         if (current === 0) {
-                            alert('Cannot divide by zero');
+                            this.currentOperand = 'Error';
+                            this.previousOperand = '';
+                            this.operation = undefined;
                             return;
                         }
                         computation = prev / current;
@@ -543,9 +592,9 @@
                 
                 computation = Math.round(computation * 100000000) / 100000000;
                 this.currentOperand = computation.toString();
+                this.previousOperand = this.previousOperand + ' ' + this.currentOperand;
                 this.operation = undefined;
-                this.previousOperand = '';
-                this.resetScreen = true;
+                this.isNewCalculation = true;
             }
 
             toggleSign() {
@@ -556,17 +605,21 @@
             calculatePercentage() {
                 if (this.currentOperand === '') return;
                 this.currentOperand = (parseFloat(this.currentOperand) / 100).toString();
-                this.resetScreen = true;
+            }
+
+            updateDisplay() {
+                this.currentOperandElement.innerText = this.formatDisplayNumber(this.currentOperand);
+                this.previousOperandElement.innerText = this.previousOperand;
             }
 
             formatDisplayNumber(number) {
-                if (number === '') return '';
+                if (number === 'Error') return number;
                 
                 const stringNumber = number.toString();
                 const integerDigits = parseFloat(stringNumber.split('.')[0]);
                 const decimalDigits = stringNumber.split('.')[1];
-                let integerDisplay;
                 
+                let integerDisplay;
                 if (isNaN(integerDigits)) {
                     integerDisplay = '';
                 } else {
@@ -582,17 +635,6 @@
                 }
             }
 
-            updateDisplay() {
-                this.currentOperandElement.innerText = this.formatDisplayNumber(this.currentOperand);
-                
-                if (this.operation != null) {
-                    this.previousOperandElement.innerText = 
-                        `${this.formatDisplayNumber(this.previousOperand)} ${this.operation}`;
-                } else {
-                    this.previousOperandElement.innerText = '';
-                }
-            }
-
             handleKeyboardInput(key) {
                 if (/[0-9]/.test(key)) {
                     this.appendNumber(key);
@@ -600,19 +642,22 @@
                 } else if (key === '.') {
                     this.appendNumber('.');
                     return true;
-                } else if (key === '+' || key === '-') {
-                    this.chooseOperation(key === '+' ? '+' : '−');
+                } else if (key === '+') {
+                    this.chooseOperation('add');
+                    return true;
+                } else if (key === '-') {
+                    this.chooseOperation('subtract');
                     return true;
                 } else if (key === '*' || key === 'x') {
-                    this.chooseOperation('×');
+                    this.chooseOperation('multiply');
                     return true;
                 } else if (key === '/') {
-                    this.chooseOperation('÷');
+                    this.chooseOperation('divide');
                     return true;
                 } else if (key === 'Enter' || key === '=') {
                     this.compute();
                     return true;
-                } else if (key === 'Escape' || key === 'Delete' || key === 'Backspace') {
+                } else if (key === 'Escape' || key === 'Delete') {
                     this.clear();
                     return true;
                 } else if (key === '%') {
@@ -698,6 +743,21 @@
                         calculator.updateDisplay();
                         event.preventDefault();
                     }
+                });
+
+                // Button press effects
+                document.querySelectorAll('.button').forEach(button => {
+                    button.addEventListener('mousedown', () => {
+                        button.style.transform = 'scale(0.92)';
+                    });
+                    
+                    button.addEventListener('mouseup', () => {
+                        button.style.transform = 'scale(1)';
+                    });
+                    
+                    button.addEventListener('mouseleave', () => {
+                        button.style.transform = 'scale(1)';
+                    });
                 });
             }
 
